@@ -35,6 +35,31 @@ Open **http://localhost:5173**. The development server proxies `/api` requests t
 
 Choose the example dataset on the upload screen or upload [backend/sample.csv](backend/sample.csv) to try the complete workflow immediately. No database or AI API key is required.
 
+## Docker
+
+The [Dockerfile](Dockerfile) builds the frontend with the npm lockfile and installs backend dependencies with the uv lockfile. The runtime serves the compiled frontend and `/api` from the same origin using one Uvicorn worker under a non-root user. No separate frontend service or database is needed.
+
+From the repository root:
+
+```bash
+docker build -t dataflow .
+docker run --rm --name dataflow -p 8000:8000 dataflow
+```
+
+Open **http://localhost:8000**. The container exposes port 8000 by default; `PORT` controls its listening port when supplied by a hosting platform. Match the published container port if overriding `PORT` locally. To supply application settings, add `--env-file .env` before the image name. Local `.env` files and development dependencies are excluded from the image.
+
+The image sets `DATAFLOW_FRONTEND_DIST=/app/frontend/dist`. For a same-origin production build outside Docker, run `npm run build` in `frontend` and set `DATAFLOW_FRONTEND_DIST` to the resulting `dist` directory before starting the backend. The directory must contain `index.html`. Leave this setting unset for the two-server Vite development workflow.
+
+## Render deployment
+
+[render.yaml](render.yaml) defines a single Docker web service named `dataflow` on Render's free plan in Oregon. Connect the repository to your Render account, then [create a Blueprint from this repository](https://dashboard.render.com/blueprint/new?repo=https://github.com/njryan-boou/DataProcessor) and review the service configuration. Render builds the image from `main`, supplies `PORT`, checks `/api/health`, and automatically deploys subsequent commits. Use the service URL shown in your Render dashboard after deployment succeeds.
+
+The Blueprint uses smaller limits to leave memory headroom on a free instance: 10 MB uploads, 100,000 rows, 100 columns, four active datasets, and a 128 MB dataframe-snapshot budget. Other defaults, including the 20-step history limit and one-hour inactivity expiration, remain unchanged. Adjust settings in Render's environment configuration if your service plan and workload require it.
+
+Free instances can sleep when idle. Sleep, restarts, and deployments discard in-memory datasets; the next request may also have a startup delay. Export results before leaving the application. This deployment provides the temporary-data MVP described below; it does not add accounts or persistent storage.
+
+For automated deployment through Render's API, supply `RENDER_API_KEY` securely in the cloud environment and allow `api.render.com` if outbound networking is restricted. This is a deployment credential, not a DataFlow runtime requirement; it should not be included in the image or application environment template. Manual Blueprint creation uses your signed-in Render account instead. The optional AI provider is configured separately using the `DATAFLOW_AI_*` settings.
+
 ## Features and data behavior
 
 - Upload and drag-and-drop CSV files, with configurable size, row, and column limits. The upload screen reads the actual server upload limit.
@@ -67,6 +92,7 @@ backend/
       transformations.py  Validated transformation registry and reusable functions
       charts.py         Type-safe, bounded chart data
       assistant.py      Replaceable provider interface and validated plans
+      frontend.py       Optional same-origin production frontend serving
     utils/              Application error types and request-size middleware
   tests/                Backend unit and API tests
   sample.csv            Included example dataset
@@ -143,6 +169,9 @@ All settings use the `DATAFLOW_` prefix. Copy [.env.example](.env.example) to th
 | `DATAFLOW_AI_API_KEY` | empty | Optional model-provider key; empty enables the limited local parser. |
 | `DATAFLOW_AI_BASE_URL` | `https://api.openai.com/v1` | HTTPS OpenAI-compatible API base URL. |
 | `DATAFLOW_AI_MODEL` | `gpt-4o-mini` | Model name accepted by your provider. |
+| `DATAFLOW_FRONTEND_DIST` | unset | Optional path to a built frontend directory containing `index.html`; set automatically in Docker. |
+
+Leave `DATAFLOW_FRONTEND_DIST` absent when unused; an empty value is interpreted as a filesystem path, not as disabled frontend serving.
 
 ## Testing
 
@@ -221,4 +250,4 @@ Datasets live in server memory and expire after inactivity. Restarting or reload
 
 Run **one Uvicorn worker**; multiple workers would have separate dataset stores. The memory setting bounds retained dataframe snapshots, not total process memory or temporary pandas allocations. Export before restarting, expiration, or reaching the history limit; exporting and re-uploading starts a new pipeline.
 
-This MVP has no accounts, authentication, database, or cross-device persistence. Dataset UUIDs identify temporary data but are not an access-control system. The default commands serve a local development workflow; a public deployment needs an authenticated storage boundary and a production frontend server/reverse proxy that routes `/api` to the backend. Uploaded content is treated only as data, filenames are sanitized, and all transformations are allowlisted and validated on the server.
+This MVP has no accounts, authentication, database, or cross-device persistence. Dataset UUIDs identify temporary data but are not an access-control system. The Docker and Render configurations serve the frontend and API together for MVP evaluation. Private-user production use requires an authenticated storage boundary and persistent storage. Uploaded content is treated only as data, filenames are sanitized, and all transformations are allowlisted and validated on the server.

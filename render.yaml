@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: dataflow
+    runtime: docker
+    plan: free
+    region: oregon
+    branch: main
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    envVars:
+      # Leave headroom for Python, request parsing and temporary pandas copies
+      # within Render's free instance memory allowance.
+      - key: DATAFLOW_MAX_MEMORY_MB
+        value: "128"
+      - key: DATAFLOW_MAX_UPLOAD_MB
+        value: "10"
+      - key: DATAFLOW_MAX_ROWS
+        value: "100000"
+      - key: DATAFLOW_MAX_COLUMNS
+        value: "100"
+      - key: DATAFLOW_MAX_DATASETS
+        value: "4"

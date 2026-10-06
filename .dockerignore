@@ -1,0 +1,15 @@
+.git
+.gitignore
+.env
+.env.*
+**/.env
+**/.env.*
+**/.venv
+**/node_modules
+**/dist
+**/__pycache__
+**/.pytest_cache
+**/*.tsbuildinfo
+**/coverage
+**/*.log
+backend/tests

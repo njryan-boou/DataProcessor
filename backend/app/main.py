@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.datasets import router
 from app.config import get_settings
+from app.services.frontend import configure_frontend
 from app.services.storage import InMemoryDatasetStore
 from app.utils.errors import DataFlowError
 from app.utils.middleware import RequestSizeLimitMiddleware
@@ -51,6 +52,7 @@ def create_app() -> FastAPI:
         from app.services.assistant import get_assistant_status
         return get_assistant_status()
 
+    configure_frontend(app, get_settings().frontend_dist)
     return app
 
 

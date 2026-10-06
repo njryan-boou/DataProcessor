@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     ai_api_key: str = Field(default="", repr=False)
     ai_base_url: str = "https://api.openai.com/v1"
     ai_model: str = "gpt-4o-mini"
+    frontend_dist: Path | None = None
     max_upload_mb: int = Field(default=20, ge=1, le=200)
     max_rows: int = Field(default=200_000, ge=1)
     max_columns: int = Field(default=200, ge=1)
